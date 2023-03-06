@@ -4,7 +4,7 @@ if [ -d "env"]
 then
     echo "env directory already exists"
 else
-    mkdir env
+    python3 -m venv env
 fi
 
 echo $PWD
@@ -15,5 +15,9 @@ if [ -d "log" ]
 then
     echo "log directory already exists"
 else
-    mkdir log
+    mkdir logs
+    touch logs/error.log logs/access.log
 fi
+
+sudo chmod -R 777 logs
+echo "envsetup completed"
