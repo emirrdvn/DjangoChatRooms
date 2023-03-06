@@ -16,8 +16,8 @@ pipeline{
         {
             steps {
                 sh '''
-                echo "Setup Gunicorn"
-                
+                chmod +x scripts/gunicorn.sh
+                ./scripts/gunicorn.sh
                 '''
             }
         }
