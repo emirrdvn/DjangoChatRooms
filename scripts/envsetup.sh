@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if [ -d "env"]
+if [ -d "env" ]
 then
     echo "env directory already exists"
 else
@@ -11,7 +11,7 @@ echo $PWD
 source env/bin/activate
 pip install -r requirements.txt
 
-if [ -d "log" ]
+if [ -d "logs" ]
 then
     echo "log directory already exists"
 else
