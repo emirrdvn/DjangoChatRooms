@@ -6,7 +6,8 @@ pipeline{
         {
             steps{
                 sh '''
-            echo "Setup Python venv"
+                chmod +x scripts/envsetup.sh
+                ./scripts/envsetup.sh
             '''
             }
             
