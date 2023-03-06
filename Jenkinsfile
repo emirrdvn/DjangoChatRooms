@@ -25,8 +25,8 @@ pipeline{
         {
             steps{
                 sh '''
-                echo "Setup NGINX"
-                
+                chmod +x scripts/nginx.sh
+                ./scripts/nginx.sh
                 '''
             }
         }
