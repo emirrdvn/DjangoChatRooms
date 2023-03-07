@@ -15,4 +15,3 @@ echo "Nginx started"
 sudo systemctl status nginx
 
 sudo cat /var/log/nginx/error.log
-sudo cat /var/lib/jenkis/workspace/django-cicd/app.log
