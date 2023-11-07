@@ -74,7 +74,7 @@ def home(request):
         Q(name__icontains=q)|
         Q(description__icontains=q)
     )
-
+    #Revisit Later
     topics= Topic.objects.all()
     room_count = rooms.count()
     room_messages = Message.objects.filter(Q(room__topic__name__icontains=q))
