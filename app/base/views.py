@@ -9,6 +9,8 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.forms import UserCreationForm
 from .models import Room, Topic, Message
 from .forms import RoomForm, UserForm
+from django.http import JsonResponse
+import json
 
 # Create your views here.
 
@@ -52,10 +54,12 @@ def logoutUser(request):
     return redirect('home')
 
 def registerPage(request):
-    form =UserCreationForm()
+    page = 'register'
+    form = UserCreationForm()
 
-    if request.method=='POST':
+    if request.method == 'POST':
         form = UserCreationForm(request.POST)
+        
         if form.is_valid():
             user = form.save(commit=False)
             user.username = user.username.lower()
@@ -63,9 +67,13 @@ def registerPage(request):
             login(request, user)
             return redirect('home')
         else:
-            messages.error(request, 'An error occurred during registration')
+            # Form hatalarını kullanıcıya göster
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f'{field}: {error}')
 
-    return render(request, 'base/login_register.html',{'form': form})
+    context = {'form': form, 'page': page}
+    return render(request, 'base/login_register.html', context)
 
 def home(request):
     q=request.GET.get('q') if request.GET.get('q') != None else ''
@@ -82,7 +90,7 @@ def home(request):
     'room_messages':room_messages}
     return render(request, 'base/home.html',context)
 
-
+'''
 def room(request,pk):
     room= Room.objects.get(id=pk)
     room_messages= room.message_set.all()
@@ -98,7 +106,60 @@ def room(request,pk):
 
     context = {'room' : room,'room_messages':room_messages,
      'participants':participants}
-    return render(request, 'base/room.html',context)
+    return render(request, 'base/room.html',context)'''
+    
+def room(request, pk):
+    room = Room.objects.get(id=pk)
+    room_messages = room.message_set.all()
+    participants = room.participants.all()
+    
+    if request.method == 'POST':
+        message = Message.objects.create(
+            user=request.user,
+            room=room,
+            body=request.POST.get('body')
+        )
+        room.participants.add(request.user)
+        
+        # AJAX request ise JSON response döndür
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': True,
+                'message': {
+                    'id': message.id,
+                    'username': message.user.username,
+                    'user_id': message.user.id,
+                    'body': message.body,
+                    'created': message.created.strftime('%b %d, %Y %I:%M %p'),
+                    'can_delete': request.user == message.user
+                }
+            })
+        
+        return redirect('room', pk=room.id)
+
+    context = {'room': room, 'room_messages': room_messages, 'participants': participants}
+    return render(request, 'base/room.html', context)
+
+# Yeni view ekle - mesajları JSON olarak döndürür
+def room_messages(request, pk):
+    room = Room.objects.get(id=pk)
+    messages = room.message_set.all().order_by('created')
+    
+    messages_data = []
+    for message in messages:
+        messages_data.append({
+            'id': message.id,
+            'username': message.user.username,
+            'user_id': message.user.id,
+            'body': message.body,
+            'created': f"{message.created.strftime('%b %d, %Y %I:%M %p')}",
+            'can_delete': request.user == message.user
+        })
+    
+    return JsonResponse({
+        'messages': messages_data,
+        'count': len(messages_data)
+    })
 
 def userProfile(request,pk):
     user = User.objects.get(id=pk)

@@ -55,9 +55,8 @@
               </a>
             </div>
             {% endif %}
-
-            
           </div>
+          
           <div class="room__box scroll">
             <div class="room__header scroll">
               <div class="room__info">
@@ -73,16 +72,11 @@
                   <span>@{{room.host.username}}</span>
                 </a>
               </div>
-              <!--<div class="room__details">
-                Lorem ipsum dolor sit, amet consectetur adipisicing elit. Quasi, tenetur laudantium? Dicta repellendus
-                rerum consectetur, voluptatem repudiandae eum ea porro cupiditate provident nulla, deserunt, ab ipsum
-                corporis laboriosam deleniti molestias?
-              </div>-->
               <span class="room__topics">{{room.topic}}</span>
             </div>
+            
             <div class="room__conversation">
-              <div class="threads scroll">
-
+              <div class="threads scroll" id="messages-container">
                 {% for message in room_messages %}
                 <div class="thread">
                   <div class="thread__top">
@@ -96,16 +90,16 @@
                       <span class="thread__date">{{message.created|timesince}} ago</span>
                     </div>
                     {% if request.user == message.user %}
-                    <a href="{% url 'delete-message' message.id%}">
-                    <div class="thread__delete">
-                      <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
-                        <title>remove</title>
-                        <path
-                          d="M27.314 6.019l-1.333-1.333-9.98 9.981-9.981-9.981-1.333 1.333 9.981 9.981-9.981 9.98 1.333 1.333 9.981-9.98 9.98 9.98 1.333-1.333-9.98-9.98 9.98-9.981z"
-                        ></path>
-                      </svg>
-                    </div>
-                  </a>
+                    <a href="{% url 'delete-message' message.id %}">
+                      <div class="thread__delete">
+                        <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+                          <title>remove</title>
+                          <path
+                            d="M27.314 6.019l-1.333-1.333-9.98 9.981-9.981-9.981-1.333 1.333 9.981 9.981-9.981 9.98 1.333 1.333 9.981-9.98 9.98 9.98 1.333-1.333-9.98-9.98 9.98-9.981z"
+                          ></path>
+                        </svg>
+                      </div>
+                    </a>
                     {% endif %}
                   </div>
                   <div class="thread__details">
@@ -116,17 +110,19 @@
               </div>
             </div>
           </div>
+          
           <div class="room__message">
-            <form action="" method="POST" >
+            <form action="" method="POST" id="message-form">
               {% csrf_token %}
-              <input name="body" placeholder="Write your message here..." /></form>
+              <input name="body" placeholder="Write your message here..." id="message-input" />
+            </form>
           </div>
         </div>
         <!-- Room End -->
 
-        <!--   Start -->
+        <!-- Participants Start -->
         <div class="participants">
-          <h3 class="participants__top">Participants <span>({{participant.count}} Joined)</span></h3>
+          <h3 class="participants__top">Participants <span>({{participants.count}} Joined)</span></h3>
           <div class="participants__list scroll">
             {% for user in participants %}
             <a href="{% url 'user-profile' user.id %}" class="participant">
@@ -141,8 +137,140 @@
             {% endfor %}
           </div>
         </div>
-        <!--  End -->
+        <!-- Participants End -->
       </div>
     </main>
-    <script src="script.js"></script>
-  {% endblock content%}
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const roomId = {{ room.id }};
+        const messagesContainer = document.getElementById('messages-container');
+        const messageForm = document.getElementById('message-form');
+        const messageInput = document.getElementById('message-input');
+        let lastMessageCount = {{ room_messages|length }};
+        let isScrolledToBottom = true;
+        
+        // Otomatik scroll kontrol fonksiyonu
+        function checkScrollPosition() {
+            const scrollTop = messagesContainer.scrollTop;
+            const scrollHeight = messagesContainer.scrollHeight;
+            const clientHeight = messagesContainer.clientHeight;
+            isScrolledToBottom = scrollTop + clientHeight >= scrollHeight - 10;
+        }
+        
+        // Scroll event listener
+        messagesContainer.addEventListener('scroll', checkScrollPosition);
+        
+        // Mesajları yenileme fonksiyonu
+        function loadMessages() {
+            fetch(`/room/{{ room.id }}/messages/`, {
+                method: 'GET',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.messages && data.messages.length > lastMessageCount) {
+                    updateMessagesDisplay(data.messages);
+                    lastMessageCount = data.messages.length;
+                    
+                    // Sadece kullanıcı en alttaysa otomatik scroll yap
+                    if (isScrolledToBottom) {
+                        scrollToBottom();
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error loading messages:', error);
+            });
+        }
+        
+        // Mesajları güncelleme fonksiyonu
+        function updateMessagesDisplay(messages) {
+            messagesContainer.innerHTML = '';
+            
+            messages.forEach(message => {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = 'thread';
+                
+                const deleteButton = message.can_delete ? 
+                    `<a href="/delete-message/${message.id}/">
+                        <div class="thread__delete">
+                            <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+                                <title>remove</title>
+                                <path d="M27.314 6.019l-1.333-1.333-9.98 9.981-9.981-9.981-1.333 1.333 9.981 9.981-9.981 9.98 1.333 1.333 9.981-9.98 9.98 9.98 1.333-1.333-9.98-9.98 9.98-9.981z"></path>
+                            </svg>
+                        </div>
+                    </a>` : '';
+                
+                messageDiv.innerHTML = `
+                    <div class="thread__top">
+                        <div class="thread__author">
+                            <a href="/profile/${message.user_id}/" class="thread__authorInfo">
+                                <div class="avatar avatar--small">
+                                    <img src="https://randomuser.me/api/portraits/men/37.jpg" />
+                                </div>
+                                <span>@${message.username}</span>
+                            </a>
+                            <span class="thread__date">${message.created}</span>
+                        </div>
+                        ${deleteButton}
+                    </div>
+                    <div class="thread__details">
+                        ${message.body}
+                    </div>
+                `;
+                
+                messagesContainer.appendChild(messageDiv);
+            });
+        }
+        
+        // En alta scroll yapma fonksiyonu
+        function scrollToBottom() {
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+        
+        // Form submit olduğunda
+        messageForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const messageBody = messageInput.value.trim();
+            if (messageBody === '') return;
+            
+            // CSRF token al
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            
+            // Mesaj gönder
+            fetch(`/room/{{ room.id }}/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                body: `body=${encodeURIComponent(messageBody)}&csrfmiddlewaretoken=${csrfToken}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    messageInput.value = '';
+                    isScrolledToBottom = true;
+                    loadMessages(); // Mesajları yenile
+                }
+            })
+            .catch(error => {
+                console.error('Error sending message:', error);
+                // Hata durumunda normal form submit
+                messageForm.submit();
+            });
+        });
+        
+        // Her 2 saniyede bir mesajları kontrol et
+        setInterval(loadMessages, 2000);
+        
+        // Sayfa yüklendiğinde en alta scroll yap
+        scrollToBottom();
+    });
+    </script>
+{% endblock content%}

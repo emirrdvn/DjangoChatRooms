@@ -70,6 +70,7 @@
             <h2 class="auth__tagline">Find your study partner</h2>
 
             <form class="form" action="" method="POST">
+              
               {% csrf_token %}
 
               {% for field in form %}
@@ -78,7 +79,15 @@
                 {{field}}
               </div>
               {% endfor %}
-
+              {% if form.errors %}
+              <div style="color: red; margin-bottom: 10px;">
+                  {% for field, errors in form.errors.items %}
+                      {% for error in errors %}
+                          <p><strong>{{ field }}:</strong> {{ error }}</p>
+                      {% endfor %}
+                  {% endfor %}
+              </div>
+              {% endif %}
               <button class="btn btn--main" type="submit">
                 <svg
                   version="1.1"
